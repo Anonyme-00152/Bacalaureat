@@ -14,7 +14,112 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      answers: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          name: string
+          player_id: string
+          room_id: string
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          name: string
+          player_id: string
+          room_id: string
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          name?: string
+          player_id?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "answers_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      players: {
+        Row: {
+          created_at: string
+          id: string
+          is_host: boolean
+          name: string
+          player_id: string
+          room_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_host?: boolean
+          name: string
+          player_id: string
+          room_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_host?: boolean
+          name?: string
+          player_id?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "players_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          categories: string[]
+          code: string
+          created_at: string
+          duration: number
+          host_id: string
+          id: string
+          letter: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          categories?: string[]
+          code: string
+          created_at?: string
+          duration?: number
+          host_id: string
+          id?: string
+          letter?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          categories?: string[]
+          code?: string
+          created_at?: string
+          duration?: number
+          host_id?: string
+          id?: string
+          letter?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
