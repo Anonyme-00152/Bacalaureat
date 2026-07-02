@@ -178,42 +178,30 @@ function RoomPage() {
     return () => clearInterval(id);
   }, [room?.status]);
 
-  // Reset local answers on new round
+  // Reset local answers whenever the current round changes or a new round starts
   useEffect(() => {
-    if (room?.status === "playing") {
-      setMyAnswers({});
-      setSubmitted(false);
-      submittedRef.current = false;
-    }
-  }, [room?.status, room?.started_at]);
+    setMyAnswers({});
+    setSubmitted(false);
+    submittedRef.current = false;
+  }, [room?.current_round, room?.started_at]);
 
   const submitMyAnswers = useCallback(async () => {
     if (!room || submittedRef.current) return;
     submittedRef.current = true;
     setSubmitted(true);
-    const { error: updateError } = await supabase
-      .from("answers")
-      .update({ name: playerName, answers: myAnswers })
-      .eq("room_id", room.id)
-      .eq("player_id", playerId);
+    const roundNumber = room.current_round ?? 1;
 
-    if (updateError) return;
-
-    const { data: existing, error: readError } = await supabase
-      .from("answers")
-      .select("id")
-      .eq("room_id", room.id)
-      .eq("player_id", playerId)
-      .maybeSingle();
-
-    if (readError || existing) return;
-
-    await supabase.from("answers").insert({
-      room_id: room.id,
-      player_id: playerId,
-      name: playerName,
-      answers: myAnswers,
-    });
+    // Upsert answer for the current round (unique on room_id + player_id + round_number)
+    await supabase.from("answers").upsert(
+      {
+        room_id: room.id,
+        player_id: playerId,
+        name: playerName,
+        answers: myAnswers,
+        round_number: roundNumber,
+      },
+      { onConflict: "room_id,player_id,round_number" },
+    );
   }, [room, myAnswers, playerId, playerName]);
 
   // Auto-submit when timer hits 0 (and end the round for everyone if host)
