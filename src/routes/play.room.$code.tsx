@@ -107,7 +107,7 @@ function RoomPage() {
       setRoom(r as Room);
       const [{ data: pl }, { data: an }] = await Promise.all([
         supabase.from("players").select("*").eq("room_id", r.id).order("created_at"),
-        supabase.from("answers").select("player_id, name, answers").eq("room_id", r.id),
+        supabase.from("answers").select("player_id, name, answers, round_number").eq("room_id", r.id),
       ]);
       if (cancelled) return;
       setPlayers((pl ?? []) as Player[]);
@@ -145,7 +145,7 @@ function RoomPage() {
           async () => {
             const { data } = await supabase
               .from("answers")
-              .select("player_id, name, answers")
+              .select("player_id, name, answers, round_number")
               .eq("room_id", r.id);
             setAnswersList((data ?? []) as AnswerRow[]);
           },
