@@ -22,6 +22,7 @@ export type Database = {
           name: string
           player_id: string
           room_id: string
+          round_number: number
         }
         Insert: {
           answers?: Json
@@ -30,6 +31,7 @@ export type Database = {
           name: string
           player_id: string
           room_id: string
+          round_number?: number
         }
         Update: {
           answers?: Json
@@ -38,6 +40,7 @@ export type Database = {
           name?: string
           player_id?: string
           room_id?: string
+          round_number?: number
         }
         Relationships: [
           {
@@ -89,6 +92,7 @@ export type Database = {
           categories: string[]
           code: string
           created_at: string
+          current_round: number
           duration: number
           host_id: string
           id: string
@@ -100,6 +104,7 @@ export type Database = {
           categories?: string[]
           code: string
           created_at?: string
+          current_round?: number
           duration?: number
           host_id: string
           id?: string
@@ -111,6 +116,7 @@ export type Database = {
           categories?: string[]
           code?: string
           created_at?: string
+          current_round?: number
           duration?: number
           host_id?: string
           id?: string
