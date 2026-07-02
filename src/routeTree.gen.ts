@@ -9,38 +9,128 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as PlayRouteImport } from './routes/play'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PlayIndexRouteImport } from './routes/play.index'
+import { Route as PlaySoloRouteImport } from './routes/play.solo'
+import { Route as PlayGroupRouteImport } from './routes/play.group'
+import { Route as PlayRoomCodeRouteImport } from './routes/play.room.$code'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayRoute = PlayRouteImport.update({
+  id: '/play',
+  path: '/play',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayIndexRoute = PlayIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PlayRoute,
+} as any)
+const PlaySoloRoute = PlaySoloRouteImport.update({
+  id: '/solo',
+  path: '/solo',
+  getParentRoute: () => PlayRoute,
+} as any)
+const PlayGroupRoute = PlayGroupRouteImport.update({
+  id: '/group',
+  path: '/group',
+  getParentRoute: () => PlayRoute,
+} as any)
+const PlayRoomCodeRoute = PlayRoomCodeRouteImport.update({
+  id: '/room/$code',
+  path: '/room/$code',
+  getParentRoute: () => PlayRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/play': typeof PlayRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/play/group': typeof PlayGroupRoute
+  '/play/solo': typeof PlaySoloRoute
+  '/play/': typeof PlayIndexRoute
+  '/play/room/$code': typeof PlayRoomCodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/play/group': typeof PlayGroupRoute
+  '/play/solo': typeof PlaySoloRoute
+  '/play': typeof PlayIndexRoute
+  '/play/room/$code': typeof PlayRoomCodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/play': typeof PlayRouteWithChildren
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/play/group': typeof PlayGroupRoute
+  '/play/solo': typeof PlaySoloRoute
+  '/play/': typeof PlayIndexRoute
+  '/play/room/$code': typeof PlayRoomCodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/play'
+    | '/sitemap.xml'
+    | '/play/group'
+    | '/play/solo'
+    | '/play/'
+    | '/play/room/$code'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/sitemap.xml'
+    | '/play/group'
+    | '/play/solo'
+    | '/play'
+    | '/play/room/$code'
+  id:
+    | '__root__'
+    | '/'
+    | '/play'
+    | '/sitemap.xml'
+    | '/play/group'
+    | '/play/solo'
+    | '/play/'
+    | '/play/room/$code'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PlayRoute: typeof PlayRouteWithChildren
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play': {
+      id: '/play'
+      path: '/play'
+      fullPath: '/play'
+      preLoaderRoute: typeof PlayRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +138,58 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/play/': {
+      id: '/play/'
+      path: '/'
+      fullPath: '/play/'
+      preLoaderRoute: typeof PlayIndexRouteImport
+      parentRoute: typeof PlayRoute
+    }
+    '/play/solo': {
+      id: '/play/solo'
+      path: '/solo'
+      fullPath: '/play/solo'
+      preLoaderRoute: typeof PlaySoloRouteImport
+      parentRoute: typeof PlayRoute
+    }
+    '/play/group': {
+      id: '/play/group'
+      path: '/group'
+      fullPath: '/play/group'
+      preLoaderRoute: typeof PlayGroupRouteImport
+      parentRoute: typeof PlayRoute
+    }
+    '/play/room/$code': {
+      id: '/play/room/$code'
+      path: '/room/$code'
+      fullPath: '/play/room/$code'
+      preLoaderRoute: typeof PlayRoomCodeRouteImport
+      parentRoute: typeof PlayRoute
+    }
   }
 }
 
+interface PlayRouteChildren {
+  PlayGroupRoute: typeof PlayGroupRoute
+  PlaySoloRoute: typeof PlaySoloRoute
+  PlayIndexRoute: typeof PlayIndexRoute
+  PlayRoomCodeRoute: typeof PlayRoomCodeRoute
+}
+
+const PlayRouteChildren: PlayRouteChildren = {
+  PlayGroupRoute: PlayGroupRoute,
+  PlaySoloRoute: PlaySoloRoute,
+  PlayIndexRoute: PlayIndexRoute,
+  PlayRoomCodeRoute: PlayRoomCodeRoute,
+}
+
+const PlayRouteWithChildren = PlayRoute._addFileChildren(PlayRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PlayRoute: PlayRouteWithChildren,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
