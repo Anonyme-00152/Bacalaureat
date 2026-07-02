@@ -218,14 +218,20 @@ function RoomPage() {
     if (!room || !isHost) return;
     const pool = letterPool.length > 0 ? letterPool : ALLOWED_LETTERS;
     const letter = pool[Math.floor(Math.random() * pool.length)];
-    // Clear previous answers for the new round
-    await supabase.from("answers").delete().eq("room_id", room.id);
+    const nextRound = (room.current_round ?? 1) + (room.status === "ended" ? 1 : 0);
+    // Purge any residual entries for the round we're about to play (defensive)
+    await supabase
+      .from("answers")
+      .delete()
+      .eq("room_id", room.id)
+      .eq("round_number", nextRound);
     await supabase
       .from("rooms")
       .update({
         status: "playing",
         letter,
         started_at: new Date().toISOString(),
+        current_round: nextRound,
       })
       .eq("id", room.id);
   };
@@ -260,10 +266,16 @@ function RoomPage() {
 
   const handleReplay = async () => {
     if (!room || !isHost) return;
-    await supabase.from("answers").delete().eq("room_id", room.id);
+    // Bump the round counter; we keep past-round answers for the cumulative score
+    const nextRound = (room.current_round ?? 1) + 1;
     await supabase
       .from("rooms")
-      .update({ status: "waiting", letter: null, started_at: null })
+      .update({
+        status: "waiting",
+        letter: null,
+        started_at: null,
+        current_round: nextRound,
+      })
       .eq("id", room.id);
   };
 
