@@ -644,20 +644,47 @@ function RoomPage() {
               <Trophy className="h-6 w-6" />
             </div>
             <h2 className="mt-4 font-display text-3xl md:text-4xl">
-              Partie terminée{room.letter ? ` — Lettre ${room.letter}` : ""}
+              Manche {currentRound} terminée{room.letter ? ` — Lettre ${room.letter}` : ""}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Récapitulatif des réponses de chaque joueur.
+              Récapitulatif des réponses de cette manche.
             </p>
           </div>
 
+          {/* Cumulative scoreboard */}
+          {cumulativeScores.length > 0 && (
+            <div className="mt-6 rounded-2xl border border-hairline bg-surface p-5">
+              <h3 className="text-sm font-semibold">
+                Classement général ({cumulativeScores[0]?.rounds ?? 0} manche
+                {(cumulativeScores[0]?.rounds ?? 0) > 1 ? "s" : ""})
+              </h3>
+              <ol className="mt-3 space-y-2">
+                {cumulativeScores.map((s, i) => (
+                  <li
+                    key={s.player_id}
+                    className="flex items-center justify-between rounded-lg border border-hairline bg-surface-elevated px-3 py-2 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                      {s.player_id === room.host_id && <Crown className="h-3.5 w-3.5 text-brand" />}
+                      <span>{s.name}</span>
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {s.total} pt{s.total > 1 ? "s" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-4">
-            {answersList.length === 0 && (
+            {currentRoundAnswers.length === 0 && (
               <p className="text-center text-sm text-muted-foreground">
-                Aucune réponse envoyée.
+                Aucune réponse envoyée pour cette manche.
               </p>
             )}
-            {answersList.map((a) => {
+            {currentRoundAnswers.map((a) => {
               const validCount = room.categories.filter((c) =>
                 (a.answers[c] ?? "").trim().toUpperCase().startsWith(room.letter ?? ""),
               ).length;
@@ -707,6 +734,7 @@ function RoomPage() {
               );
             })}
           </div>
+
 
           {isHost && (
             <button
