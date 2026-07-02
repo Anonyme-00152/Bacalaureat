@@ -43,6 +43,7 @@ type Room = {
   categories: string[];
   duration: number;
   started_at: string | null;
+  current_round: number;
 };
 
 type Player = {
@@ -57,6 +58,7 @@ type AnswerRow = {
   player_id: string;
   name: string;
   answers: Record<string, string>;
+  round_number: number;
 };
 
 function RoomPage() {
