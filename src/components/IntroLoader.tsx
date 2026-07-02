@@ -39,11 +39,30 @@ export function IntroLoader({ onDone }: { onDone: () => void }) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] grid place-items-center bg-background"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-background"
       style={{ backgroundImage: "var(--gradient-radial)" }}
     >
+      {/* Animated background layers — same gradient, subtle motion */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage: "var(--gradient-radial)",
+          animation: "intro-bg-drift 12s ease-in-out infinite alternate",
+        }}
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-70"
+        style={{
+          backgroundImage: "var(--gradient-radial)",
+          filter: "blur(40px)",
+          animation: "intro-bg-pulse 6s ease-in-out infinite",
+        }}
+      />
+
       <h1
-        className="font-display text-5xl md:text-8xl tracking-tight flex overflow-hidden"
+        className="relative font-display text-5xl md:text-8xl tracking-tight flex overflow-hidden"
         aria-label={currentWord}
         key={wordIndex + phase}
       >
@@ -77,6 +96,15 @@ export function IntroLoader({ onDone }: { onDone: () => void }) {
         @keyframes intro-out {
           0% { transform: translateY(0); opacity: 1; }
           100% { transform: translateY(-110%); opacity: 0; }
+        }
+        @keyframes intro-bg-drift {
+          0%   { transform: translate3d(-3%, -2%, 0) scale(1.05); }
+          50%  { transform: translate3d(2%, 3%, 0) scale(1.1); }
+          100% { transform: translate3d(3%, -3%, 0) scale(1.05); }
+        }
+        @keyframes intro-bg-pulse {
+          0%, 100% { opacity: 0.55; transform: scale(1); }
+          50%      { opacity: 0.85; transform: scale(1.08); }
         }
       `}</style>
     </div>
