@@ -59,6 +59,7 @@ type AnswerRow = {
   name: string;
   answers: Record<string, string>;
   round_number: number;
+  letter: string | null;
 };
 
 function RoomPage() {
