@@ -43,6 +43,7 @@ type Room = {
   categories: string[];
   duration: number;
   started_at: string | null;
+  current_round: number;
 };
 
 type Player = {
@@ -57,6 +58,8 @@ type AnswerRow = {
   player_id: string;
   name: string;
   answers: Record<string, string>;
+  round_number: number;
+  letter: string | null;
 };
 
 function RoomPage() {
@@ -80,6 +83,36 @@ function RoomPage() {
   const isHost = room && room.host_id === playerId;
   const [letterPool, setLetterPool] = useState<string[]>(ALLOWED_LETTERS);
   const [savingConfig, setSavingConfig] = useState(false);
+
+  const currentRound = room?.current_round ?? 1;
+  const categories = room?.categories ?? [];
+
+  // Answers of the current round only (clean recap)
+  const currentRoundAnswers = useMemo(
+    () => answersList.filter((a) => a.round_number === currentRound),
+    [answersList, currentRound],
+  );
+
+  // Cumulative scores across all rounds played in this room
+  const cumulativeScores = useMemo(() => {
+    const scores = new Map<string, { name: string; total: number; rounds: number }>();
+    for (const a of answersList) {
+      const letter = (a.letter ?? "").toUpperCase();
+      if (!letter) continue;
+      const valid = categories.filter((c) =>
+        (a.answers[c] ?? "").trim().toUpperCase().startsWith(letter),
+      ).length;
+      const prev = scores.get(a.player_id);
+      scores.set(a.player_id, {
+        name: a.name,
+        total: (prev?.total ?? 0) + valid,
+        rounds: (prev?.rounds ?? 0) + 1,
+      });
+    }
+    return Array.from(scores.entries())
+      .map(([player_id, v]) => ({ player_id, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [answersList, categories]);
 
   // If no pseudo, send back to lobby
   useEffect(() => {
@@ -105,7 +138,7 @@ function RoomPage() {
       setRoom(r as Room);
       const [{ data: pl }, { data: an }] = await Promise.all([
         supabase.from("players").select("*").eq("room_id", r.id).order("created_at"),
-        supabase.from("answers").select("player_id, name, answers").eq("room_id", r.id),
+        supabase.from("answers").select("player_id, name, answers, round_number, letter").eq("room_id", r.id),
       ]);
       if (cancelled) return;
       setPlayers((pl ?? []) as Player[]);
@@ -143,7 +176,7 @@ function RoomPage() {
           async () => {
             const { data } = await supabase
               .from("answers")
-              .select("player_id, name, answers")
+              .select("player_id, name, answers, round_number, letter")
               .eq("room_id", r.id);
             setAnswersList((data ?? []) as AnswerRow[]);
           },
@@ -176,42 +209,31 @@ function RoomPage() {
     return () => clearInterval(id);
   }, [room?.status]);
 
-  // Reset local answers on new round
+  // Reset local answers whenever the current round changes or a new round starts
   useEffect(() => {
-    if (room?.status === "playing") {
-      setMyAnswers({});
-      setSubmitted(false);
-      submittedRef.current = false;
-    }
-  }, [room?.status, room?.started_at]);
+    setMyAnswers({});
+    setSubmitted(false);
+    submittedRef.current = false;
+  }, [room?.current_round, room?.started_at]);
 
   const submitMyAnswers = useCallback(async () => {
     if (!room || submittedRef.current) return;
     submittedRef.current = true;
     setSubmitted(true);
-    const { error: updateError } = await supabase
-      .from("answers")
-      .update({ name: playerName, answers: myAnswers })
-      .eq("room_id", room.id)
-      .eq("player_id", playerId);
+    const roundNumber = room.current_round ?? 1;
 
-    if (updateError) return;
-
-    const { data: existing, error: readError } = await supabase
-      .from("answers")
-      .select("id")
-      .eq("room_id", room.id)
-      .eq("player_id", playerId)
-      .maybeSingle();
-
-    if (readError || existing) return;
-
-    await supabase.from("answers").insert({
-      room_id: room.id,
-      player_id: playerId,
-      name: playerName,
-      answers: myAnswers,
-    });
+    // Upsert answer for the current round (unique on room_id + player_id + round_number)
+    await supabase.from("answers").upsert(
+      {
+        room_id: room.id,
+        player_id: playerId,
+        name: playerName,
+        answers: myAnswers,
+        round_number: roundNumber,
+        letter: room.letter,
+      },
+      { onConflict: "room_id,player_id,round_number" },
+    );
   }, [room, myAnswers, playerId, playerName]);
 
   // Auto-submit when timer hits 0 (and end the round for everyone if host)
@@ -228,14 +250,20 @@ function RoomPage() {
     if (!room || !isHost) return;
     const pool = letterPool.length > 0 ? letterPool : ALLOWED_LETTERS;
     const letter = pool[Math.floor(Math.random() * pool.length)];
-    // Clear previous answers for the new round
-    await supabase.from("answers").delete().eq("room_id", room.id);
+    const nextRound = (room.current_round ?? 1) + (room.status === "ended" ? 1 : 0);
+    // Purge any residual entries for the round we're about to play (defensive)
+    await supabase
+      .from("answers")
+      .delete()
+      .eq("room_id", room.id)
+      .eq("round_number", nextRound);
     await supabase
       .from("rooms")
       .update({
         status: "playing",
         letter,
         started_at: new Date().toISOString(),
+        current_round: nextRound,
       })
       .eq("id", room.id);
   };
@@ -270,10 +298,16 @@ function RoomPage() {
 
   const handleReplay = async () => {
     if (!room || !isHost) return;
-    await supabase.from("answers").delete().eq("room_id", room.id);
+    // Bump the round counter; we keep past-round answers for the cumulative score
+    const nextRound = (room.current_round ?? 1) + 1;
     await supabase
       .from("rooms")
-      .update({ status: "waiting", letter: null, started_at: null })
+      .update({
+        status: "waiting",
+        letter: null,
+        started_at: null,
+        current_round: nextRound,
+      })
       .eq("id", room.id);
   };
 
@@ -610,20 +644,47 @@ function RoomPage() {
               <Trophy className="h-6 w-6" />
             </div>
             <h2 className="mt-4 font-display text-3xl md:text-4xl">
-              Partie terminée{room.letter ? ` — Lettre ${room.letter}` : ""}
+              Manche {currentRound} terminée{room.letter ? ` — Lettre ${room.letter}` : ""}
             </h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              Récapitulatif des réponses de chaque joueur.
+              Récapitulatif des réponses de cette manche.
             </p>
           </div>
 
+          {/* Cumulative scoreboard */}
+          {cumulativeScores.length > 0 && (
+            <div className="mt-6 rounded-2xl border border-hairline bg-surface p-5">
+              <h3 className="text-sm font-semibold">
+                Classement général ({cumulativeScores[0]?.rounds ?? 0} manche
+                {(cumulativeScores[0]?.rounds ?? 0) > 1 ? "s" : ""})
+              </h3>
+              <ol className="mt-3 space-y-2">
+                {cumulativeScores.map((s, i) => (
+                  <li
+                    key={s.player_id}
+                    className="flex items-center justify-between rounded-lg border border-hairline bg-surface-elevated px-3 py-2 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 text-muted-foreground tabular-nums">{i + 1}.</span>
+                      {s.player_id === room.host_id && <Crown className="h-3.5 w-3.5 text-brand" />}
+                      <span>{s.name}</span>
+                    </div>
+                    <span className="font-mono text-xs text-muted-foreground">
+                      {s.total} pt{s.total > 1 ? "s" : ""}
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          )}
+
           <div className="mt-6 grid gap-4">
-            {answersList.length === 0 && (
+            {currentRoundAnswers.length === 0 && (
               <p className="text-center text-sm text-muted-foreground">
-                Aucune réponse envoyée.
+                Aucune réponse envoyée pour cette manche.
               </p>
             )}
-            {answersList.map((a) => {
+            {currentRoundAnswers.map((a) => {
               const validCount = room.categories.filter((c) =>
                 (a.answers[c] ?? "").trim().toUpperCase().startsWith(room.letter ?? ""),
               ).length;
@@ -673,6 +734,7 @@ function RoomPage() {
               );
             })}
           </div>
+
 
           {isHost && (
             <button
