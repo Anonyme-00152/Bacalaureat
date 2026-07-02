@@ -84,6 +84,36 @@ function RoomPage() {
   const [letterPool, setLetterPool] = useState<string[]>(ALLOWED_LETTERS);
   const [savingConfig, setSavingConfig] = useState(false);
 
+  const currentRound = room?.current_round ?? 1;
+  const categories = room?.categories ?? [];
+
+  // Answers of the current round only (clean recap)
+  const currentRoundAnswers = useMemo(
+    () => answersList.filter((a) => a.round_number === currentRound),
+    [answersList, currentRound],
+  );
+
+  // Cumulative scores across all rounds played in this room
+  const cumulativeScores = useMemo(() => {
+    const scores = new Map<string, { name: string; total: number; rounds: number }>();
+    for (const a of answersList) {
+      const letter = (a.letter ?? "").toUpperCase();
+      if (!letter) continue;
+      const valid = categories.filter((c) =>
+        (a.answers[c] ?? "").trim().toUpperCase().startsWith(letter),
+      ).length;
+      const prev = scores.get(a.player_id);
+      scores.set(a.player_id, {
+        name: a.name,
+        total: (prev?.total ?? 0) + valid,
+        rounds: (prev?.rounds ?? 0) + 1,
+      });
+    }
+    return Array.from(scores.entries())
+      .map(([player_id, v]) => ({ player_id, ...v }))
+      .sort((a, b) => b.total - a.total);
+  }, [answersList, categories]);
+
   // If no pseudo, send back to lobby
   useEffect(() => {
     if (!playerName) navigate({ to: "/play/group" });
