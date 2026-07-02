@@ -200,6 +200,7 @@ function RoomPage() {
         name: playerName,
         answers: myAnswers,
         round_number: roundNumber,
+        letter: room.letter,
       },
       { onConflict: "room_id,player_id,round_number" },
     );
